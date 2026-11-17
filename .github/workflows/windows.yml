@@ -1,0 +1,83 @@
+# HP Key for Windows (based on Vikey's workflow, GPL-3.0).
+# Every push: engine checks + HPKey.exe for x64 and ARM64.
+# A published GitHub release (or a manual run with a tag): Inno Setup installers + portable zips uploaded to it.
+name: windows
+on:
+  push:
+    branches: [main]
+    paths: [macos/Engine/**, macos/Tools/autoswitch/**, macos/project.yml, macos/App/Resources/Emoji.json, windows/**, LICENSE, .github/workflows/windows.yml]
+  pull_request:
+    paths: [macos/Engine/**, macos/Tools/autoswitch/**, windows/**, .github/workflows/windows.yml]
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Existing GitHub release tag to package for and upload to (e.g. v1.0.0)"
+        required: false
+permissions:
+  contents: read
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: windows-latest
+            arch: x64
+          - runner: windows-11-arm
+            arch: arm64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: ${{ matrix.arch }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install Ninja
+        run: choco install ninja -y --no-progress
+        shell: pwsh
+      - name: Engine checks (rule cases, golden, Telex lock, driver parity, perf)
+        run: pwsh windows/check.ps1
+        shell: pwsh
+      - name: Build HPKey.exe (version from macos/project.yml)
+        run: |
+          cmake -S windows -B windows/build -G Ninja -DCMAKE_BUILD_TYPE=Release
+          cmake --build windows/build --config Release --target vikey
+        shell: pwsh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: HPKey-windows-${{ matrix.arch }}
+          path: windows/build/App/HPKey.exe
+
+  package:
+    needs: build
+    if: github.event_name == 'release' || inputs.release_tag != ''
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - name: Installers (Inno Setup) + portable zips (unsigned)
+        run: |
+          $ver = (Select-String -Path macos/project.yml -Pattern 'MARKETING_VERSION: "([^"]+)"').Matches[0].Groups[1].Value
+          New-Item -ItemType Directory -Force dist | Out-Null
+          foreach ($arch in @('x64', 'arm64')) {
+            $src = "artifacts/HPKey-windows-$arch"
+            & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "/DVersion=$ver" "/DArch=$arch" "/DSrc=$((Resolve-Path $src).Path)" windows/installer/HPKey.iss
+            if ($LASTEXITCODE -ne 0) { exit 1 }
+            Move-Item "windows/installer/out/HPKey-$ver-$arch-Setup.exe" dist/
+            Compress-Archive -Path "$src/HPKey.exe" -DestinationPath "dist/HPKey-$ver-$arch-portable.zip"
+          }
+          Get-ChildItem dist | Out-Host
+        shell: pwsh
+      - name: Upload to the release
+        run: gh release upload "${{ github.event.release.tag_name || inputs.release_tag }}" dist/* --clobber -R ${{ github.repository }}
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
