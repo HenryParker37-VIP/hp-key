@@ -59,3 +59,12 @@ to type unless the Lab is in front). NOT CONCLUSIVE; human-speed results above a
 Quit Vikey first (HP Key pauses while it runs). In Chrome and Safari, type `tieesng vieejt ` into a search box
 and a ChatGPT/Gmail message box: expect `tiếng việt `. In VS Code type the same in a comment. In the HP Key menu,
 choose English, Tiếng Việt and Smart in turn and type `review tieesng `.
+
+## Windows (HP Key 1.0.0, `windows/`)
+
+- Engine checks on GitHub Actions (`windows/check.ps1`: rule cases, golden snapshots, Telex lock, driver ==
+  simulator, performance): PASS on x64 (`windows-latest`) and ARM64 (`windows-11-arm`).
+- `HPKey.exe` builds for x64 and ARM64; Inno Setup installers and portable zips are attached to release v1.0.0.
+  The x64 binary contains the author signature, About text and renamed single-instance mutex, and no
+  vikey.app feedback link.
+- Real typing on a Windows machine: NOT TESTED (no Windows machine was available).
