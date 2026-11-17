@@ -50,6 +50,8 @@ complete corresponding source, including the modifications listed below.
   settings window ends with "Made by Nguyen Manh Tuan Hung (Henry Parker)".
 - Paths point at the shared engine under `macos/` (`windows/CMakeLists.txt`, `App/CMakeLists.txt`,
   `HPKey.rc`, `main.cpp`, `check.ps1`); Vikey's VM-only test scripts were dropped.
+- `check.ps1`: the driver/simulator comparison passes `--as-typed`, as the macOS `driver/cmp.sh` does
+  (without it the comparison fails since Vikey's D62 Enter change).
 - `.github/workflows/windows.yml`: Vikey's workflow without code signing, packaging on published releases.
 
 - `scripts/build.sh` builds a universal (Apple silicon + Intel) app; `scripts/make-dmg.sh` packages it as a DMG.
