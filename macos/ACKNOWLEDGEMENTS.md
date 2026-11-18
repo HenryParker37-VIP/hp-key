@@ -14,6 +14,7 @@ Vikey is built on the code and data below. The app contains only word statistics
 Only frequency counts, word-pair and word-triple counts, a list of English word forms, and a small next-word network trained on the FineWeb and Reddit text below are built in.
 
 - [FrequencyWords (OpenSubtitles 2018)](https://github.com/hermitdave/FrequencyWords), Hermit Dave (CC BY-SA 4.0)
+- [Leipzig Corpora Collection](https://wortschatz.uni-leipzig.de/en/download/Vietnamese), Universität Leipzig, CC BY 4.0: `vie_news_2022_300K` and `vie-vn_web_2015_300K` sentences, counted into HP Key's accent model (`App/Resources/AccentModel.bin`: word, word-pair and three-word counts only, no text). Added by HP Key.
 - [SCOWL / English Speller Database](https://github.com/en-wl/wordlist), en_US Hunspell dictionary, English word forms (plurals, verb forms). Copyright 2000-2026 by Kevin Atkinson. Permission to use, copy, modify, distribute, and sell any part of the English Speller Database (ESDB, previously known as SCOWLv2), or word lists created from it, is hereby granted without fee, provided that the above copyright notice appears in all copies and that both the above copyright notice and this notice appear in supporting documentation. Kevin Atkinson makes no representations about the suitability of this database for any purpose. It is provided "as is" without express or implied warranty.
 - [FineWeb-2 and FineWeb](https://huggingface.co/datasets/HuggingFaceFW/fineweb-2), Hugging Face (ODC-By 1.0)
 - [HPLT v2](https://hplt-project.org), High Performance Language Technologies (CC0)

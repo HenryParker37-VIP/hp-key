@@ -10,6 +10,7 @@ struct MainView: View {
     @AppStorage(PrefKey.restoreIfInvalid) private var restore = 1
     @AppStorage(PrefKey.teencode) private var teencode = 1
     @AppStorage(PrefKey.telexStyle) private var telexStyle = 0
+    @AppStorage(SelectionAccents.enabledKey) private var accentsOnSelect = true   // HP Key
     @AppStorage(PrefKey.mainTab) private var tab = "general"
     @AppStorage(PrefKey.autoSwitch) private var autoSwitch = 1
     @AppStorage(PrefKey.smartSwitch) private var smartSwitch = 1
@@ -166,6 +167,9 @@ struct MainView: View {
                 .disabled(spelling == 0)
                 Toggle(isOn: flag($teencode)) {
                     Tip("Chính tả teencode", "Giữ các từ kiểu chat như zui zẻ, zậy, dzô, gòy, thík, bíe thay vì trả lại phím. Chỉ những từ teencode quen thuộc, nên từ tiếng Anh như zero, look vẫn giữ nguyên.")
+                }
+                Toggle(isOn: $accentsOnSelect) {   // HP Key
+                    Tip("Hiện dấu khi bôi đen", "Bôi đen một đoạn tiếng Việt không dấu ở bất kỳ đâu, ví dụ tin nhắn \"hom nay di dau\": phía trên hiện \"hôm nay đi đâu\". HP Key đoán dấu ngay trên máy, không lưu và không gửi đi đâu, bỏ qua ô mật khẩu.")
                 }
     }
     @ViewBuilder private var emojiRows: some View {

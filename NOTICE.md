@@ -35,6 +35,14 @@ complete corresponding source, including the modifications listed below.
 - `Tools/autoswitch/check.sh`: the DECISIONS audit ignores tests that live in Vikey's iOS/Windows/Linux/Android
   folders, which HP Key does not include; missing macOS/engine tests still fail.
 
+## Accents for text written without them (2026-11-18, macOS)
+
+- New `App/Model/AccentRestorer.swift`, `App/Model/SelectionAccents.swift`, `App/Resources/AccentModel.bin`
+  and `Tools/accents/` (model builder, evaluator, README): select Vietnamese written without accents in any app
+  and a bubble above the selection shows it with accents. Written for HP Key; not part of Vikey.
+- `AppDelegate.swift` starts it; `MainView.swift` adds the "Hiện dấu khi bôi đen" switch;
+  `Acknowledgements.swift` and `ACKNOWLEDGEMENTS.md` credit the Leipzig Corpora Collection (CC BY 4.0).
+
 ## HP Key for Windows (2026-11-17)
 
 `windows/` is Vikey's `Windows/` folder from the same commit, with these changes:
