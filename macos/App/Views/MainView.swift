@@ -169,7 +169,7 @@ struct MainView: View {
                     Tip("Chính tả teencode", "Giữ các từ kiểu chat như zui zẻ, zậy, dzô, gòy, thík, bíe thay vì trả lại phím. Chỉ những từ teencode quen thuộc, nên từ tiếng Anh như zero, look vẫn giữ nguyên.")
                 }
                 Toggle(isOn: $accentsOnSelect) {   // HP Key
-                    Tip("Hiện dấu khi bôi đen", "Bôi đen một đoạn tiếng Việt không dấu ở bất kỳ đâu, ví dụ tin nhắn \"hom nay di dau\": phía trên hiện \"hôm nay đi đâu\". HP Key đoán dấu ngay trên máy, không lưu và không gửi đi đâu, bỏ qua ô mật khẩu.")
+                    Tip("Hiện dấu khi bôi đen", "Bôi đen một đoạn tiếng Việt không dấu ở bất kỳ đâu, ví dụ tin nhắn \"hom nay di dau\": phía trên hiện \"hôm nay đi đâu\". Ở chỗ không tự hiện, bấm chuột phải › Dịch vụ › HP Key: Xem có dấu (hoặc HP Key: Thêm dấu để sửa luôn chữ trong ô đang gõ). HP Key đoán dấu ngay trên máy, không lưu và không gửi đi đâu, bỏ qua ô mật khẩu.")
                 }
     }
     @ViewBuilder private var emojiRows: some View {

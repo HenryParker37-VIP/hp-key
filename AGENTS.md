@@ -7,6 +7,6 @@ Unicode rewrite of the current word) on 2026-11-17; do not reintroduce a second 
 
 Protect typed text: no network, no typing history (the inherited typing log stays off by default), no
 clipboard reads; secure input passes through. The accent bubble (`SelectionAccents.swift`) reads the selection
-through Accessibility only right after the user selects text, skips password fields and keeps nothing. Use scripts/test.sh, scripts/build.sh (Apple Development
+through Accessibility only right after the user selects text, skips password fields and keeps nothing. Its right-click Services get only the text the user sends them (the service pasteboard, not the clipboard). Use scripts/test.sh, scripts/build.sh (Apple Development
 signing only) and scripts/install-app.sh (backs up first). Changing system permissions, input sources or
 signing accounts needs the owner's explicit approval. Do not claim app compatibility without a live test.

@@ -4,13 +4,15 @@
 // dong") and a bubble above the selection shows it with accents. The selection is read through the
 // Accessibility permission HP Key already has, only right after the user selects something; it is never
 // stored, logged or sent anywhere, password fields are skipped, and the original text is not changed.
+// The same works from the right-click menu (Services): "HP Key: Xem có dấu" shows the bubble and
+// "HP Key: Thêm dấu" replaces the selection in a text field; macOS hands over only the selected text.
 
 import AppKit
 import ApplicationServices
 import Carbon.HIToolbox   // IsSecureEventInputEnabled
 import SwiftUI
 
-@MainActor final class SelectionAccents {
+@MainActor final class SelectionAccents: NSObject {
     static let shared = SelectionAccents()
     static let enabledKey = "HPKeyAccentsOnSelect"
 
@@ -19,7 +21,7 @@ import SwiftUI
     private var shownFor = ""
     private var downAt = NSPoint.zero
     private var pending: DispatchWorkItem?
-    private var accessibleApps = Set<pid_t>()
+    private var accessibleSince: [pid_t: Date] = [:]
 
     func install() {
         UserDefaults.standard.register(defaults: [Self.enabledKey: true])
@@ -45,9 +47,21 @@ import SwiftUI
         for (mask, handler) in watch {
             if let m = NSEvent.addGlobalMonitorForEvents(matching: mask, handler: { e in MainActor.assumeIsolated { handler(e) } }) { monitors.append(m) }
         }
-        NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main) { [weak self] _ in
-            MainActor.assumeIsolated { self?.hide() }
+        NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main) { [weak self] note in
+            let app = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication
+            MainActor.assumeIsolated {
+                self?.hide()
+                if let app { self?.prepare(app) }   // web apps build their text tree for us in the background
+            }
         }
+        if let front = NSWorkspace.shared.frontmostApplication { prepare(front) }
+        NSApp.servicesProvider = self
+        NSUpdateDynamicServices()
+    }
+
+    private func prepare(_ app: NSRunningApplication) {
+        guard enabled, AXIsProcessTrusted(), app.processIdentifier != getpid() else { return }
+        makeAccessible(app)
     }
 
     private var enabled: Bool { UserDefaults.standard.bool(forKey: Self.enabledKey) }
@@ -60,12 +74,12 @@ import SwiftUI
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.12, execute: work)
     }
 
-    private func show(near point: NSPoint) {
+    private func show(near point: NSPoint, retry: Bool = true) {
         guard enabled, AXIsProcessTrusted(), !IsSecureEventInputEnabled(),
               let front = NSWorkspace.shared.frontmostApplication, front.processIdentifier != getpid(),
               let restorer = AccentRestorer.shared else { return }
         let app = AXUIElementCreateApplication(front.processIdentifier)
-        makeAccessible(app, pid: front.processIdentifier)
+        makeAccessible(front)
         let focused = attribute(app, kAXFocusedUIElementAttribute) as AXUIElement?
         if let focused, (attribute(focused, kAXRoleAttribute) as String?) == "AXSecureTextField"
             || (attribute(focused, kAXSubroleAttribute) as String?) == "AXSecureTextField" { return }
@@ -74,7 +88,15 @@ import SwiftUI
         if selected?.isEmpty ?? true, let web = webArea(app: app, focused: focused) {   // text selected on a web page
             (selected, top) = webSelection(web)
         }
-        guard let selected, !selected.isEmpty else { return }
+        guard let selected, !selected.isEmpty else {
+            // a web app that has just been asked for its text needs a moment to build it: look once more
+            if retry, let since = accessibleSince[front.processIdentifier], Date().timeIntervalSince(since) < 5 {
+                let work = DispatchWorkItem { [weak self] in MainActor.assumeIsolated { self?.show(near: point, retry: false) } }
+                pending = work
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.6, execute: work)
+            }
+            return
+        }
         restorer.modernTone = UserDefaults.standard.integer(forKey: PrefKey.modernOrthography) != 0
         guard let accented = restorer.suggestion(for: selected) else { return }
         if accented == shownFor, panel?.isVisible == true { return }
@@ -117,12 +139,25 @@ import SwiftUI
         return (text as? String, top)
     }
 
-    /// Chromium and Electron apps (Chrome, Zalo, Messenger, Slack…) only expose their text to
-    /// Accessibility clients that ask for it.
-    private func makeAccessible(_ app: AXUIElement, pid: pid_t) {
-        guard !accessibleApps.contains(pid) else { return }
-        accessibleApps.insert(pid)
-        AXUIElementSetAttributeValue(app, "AXManualAccessibility" as CFString, kCFBooleanTrue)
+    /// Chromium and Electron apps (Chrome, Helium, ChatGPT, Zalo, Claude, Slack…) only expose the text of
+    /// their pages to Accessibility clients that ask for it. Electron apps answer AXManualAccessibility;
+    /// Chromium browsers and apps built on Chromium answer AXEnhancedUserInterface (asked only of them:
+    /// some native apps animate windows differently with it on).
+    private func makeAccessible(_ running: NSRunningApplication) {
+        let pid = running.processIdentifier
+        guard accessibleSince[pid] == nil else { return }
+        accessibleSince[pid] = Date()
+        let app = AXUIElementCreateApplication(pid)
+        if AXUIElementSetAttributeValue(app, "AXManualAccessibility" as CFString, kCFBooleanTrue) != .success, isChromium(running) {
+            AXUIElementSetAttributeValue(app, "AXEnhancedUserInterface" as CFString, kCFBooleanTrue)
+        }
+    }
+
+    /// Chromium-based apps ship "<Name> Framework.framework" (Google Chrome Framework, Helium Framework…).
+    private func isChromium(_ app: NSRunningApplication) -> Bool {
+        guard let dir = app.bundleURL?.appendingPathComponent("Contents/Frameworks").path,
+              let items = try? FileManager.default.contentsOfDirectory(atPath: dir) else { return false }
+        return items.contains { $0.hasSuffix(" Framework.framework") }
     }
 
     private func attribute<T>(_ element: AXUIElement, _ name: String) -> T? {
@@ -143,11 +178,45 @@ import SwiftUI
         return NSPoint(x: rect.midX, y: primaryHeight - rect.minY)   // AX counts from the top of the main screen
     }
 
-    private func present(_ text: String, above anchor: NSPoint) {
+    // MARK: right-click menu (Services)
+
+    /// "HP Key: Xem có dấu": the bubble for the text selected in any app, chosen from its right-click menu.
+    @objc nonisolated func showAccents(_ pboard: NSPasteboard, userData: String?, error: AutoreleasingUnsafeMutablePointer<NSString?>) {
+        let text = pboard.string(forType: .string)
+        MainActor.assumeIsolated {
+            guard let text, let accented = Self.accented(text) else { error.pointee = "HP Key không đọc được đoạn chữ này." ; return }
+            let same = accented == text.trimmingCharacters(in: .whitespacesAndNewlines)
+            present(same ? "Đoạn này không cần thêm dấu." : accented, above: NSEvent.mouseLocation, copyable: !same)
+        }
+    }
+
+    /// "HP Key: Thêm dấu": replaces the selection in a text field with the accented text.
+    @objc nonisolated func addAccents(_ pboard: NSPasteboard, userData: String?, error: AutoreleasingUnsafeMutablePointer<NSString?>) {
+        guard let text = pboard.string(forType: .string) else { return }
+        let result = MainActor.assumeIsolated { () -> String? in
+            guard let accented = Self.accented(text) else { return nil }
+            // keep the spaces and line breaks around the selection as they were
+            let lead = text.prefix { $0.isWhitespace || $0.isNewline }, trail = String(text.reversed().prefix { $0.isWhitespace || $0.isNewline }.reversed())
+            return lead + accented + trail
+        }
+        guard let result else { error.pointee = "HP Key không đọc được đoạn chữ này."; return }
+        pboard.clearContents()
+        pboard.setString(result, forType: .string)
+    }
+
+    /// The text with accents, for a selection the user chose to send (up to a few pages).
+    private static func accented(_ text: String) -> String? {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, trimmed.count <= 20_000, let restorer = AccentRestorer.shared else { return nil }
+        restorer.modernTone = UserDefaults.standard.integer(forKey: PrefKey.modernOrthography) != 0
+        return restorer.restore(trimmed)
+    }
+
+    private func present(_ text: String, above anchor: NSPoint, copyable: Bool = true) {
         shownFor = text
         let panel = self.panel ?? makePanel()
         self.panel = panel
-        let host = NSHostingView(rootView: AccentBubble(text: text) { [weak self] in
+        let host = NSHostingView(rootView: AccentBubble(text: text, copyable: copyable) { [weak self] in
             NSPasteboard.general.clearContents()
             NSPasteboard.general.setString(text, forType: .string)
             self?.hide()
@@ -185,6 +254,7 @@ import SwiftUI
 /// The bubble: the text with accents and a copy button.
 private struct AccentBubble: View {
     let text: String
+    let copyable: Bool
     let copy: () -> Void
 
     var body: some View {
@@ -194,9 +264,11 @@ private struct AccentBubble: View {
                 .textSelection(.enabled)
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: 420, alignment: .leading)
-            Button(action: copy) { Image(systemName: "doc.on.doc") }
-                .buttonStyle(.borderless)
-                .help("Sao chép")
+            if copyable {
+                Button(action: copy) { Image(systemName: "doc.on.doc") }
+                    .buttonStyle(.borderless)
+                    .help("Sao chép")
+            }
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)

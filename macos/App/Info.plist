@@ -28,6 +28,46 @@
 	<true/>
 	<key>NSAppleEventsUsageDescription</key>
 	<string>HP Key đọc địa chỉ tab đang mở để nhớ tiếng Anh hay tiếng Việt cho từng trang web. Địa chỉ chỉ dùng trên máy bạn.</string>
+	<key>NSServices</key>
+	<array>
+		<dict>
+			<key>NSMenuItem</key>
+			<dict>
+				<key>default</key>
+				<string>HP Key: Xem có dấu</string>
+			</dict>
+			<key>NSMessage</key>
+			<string>showAccents</string>
+			<key>NSPortName</key>
+			<string>HP Key</string>
+			<key>NSSendTypes</key>
+			<array>
+				<string>public.utf8-plain-text</string>
+				<string>NSStringPboardType</string>
+			</array>
+		</dict>
+		<dict>
+			<key>NSMenuItem</key>
+			<dict>
+				<key>default</key>
+				<string>HP Key: Thêm dấu</string>
+			</dict>
+			<key>NSMessage</key>
+			<string>addAccents</string>
+			<key>NSPortName</key>
+			<string>HP Key</string>
+			<key>NSSendTypes</key>
+			<array>
+				<string>public.utf8-plain-text</string>
+				<string>NSStringPboardType</string>
+			</array>
+			<key>NSReturnTypes</key>
+			<array>
+				<string>public.utf8-plain-text</string>
+				<string>NSStringPboardType</string>
+			</array>
+		</dict>
+	</array>
 	<key>NSHumanReadableCopyright</key>
 	<string>HP Key © 2026 Nguyen Manh Tuan Hung (Henry Parker). Based on Vikey © 2026 Tony Dinh and OpenKey by Tuyen Mai. GPL-3.0.</string>
 </dict>
